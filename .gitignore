@@ -1,0 +1,49 @@
+# Build directories
+build/
+bin/
+obj/
+out/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.cmake
+
+# Compiled files
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.obj
+*.o
+*.a
+*.lib
+*.so
+*.dylib
+
+# ImGui settings (user-specific)
+imgui.ini
+
+# IDE settings
+.vscode/
+.idea/
+
+# Temporary files
+*.log
+*.tmp
+*~
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Keep important config
+!event_config.ini

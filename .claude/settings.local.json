@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake --build:*)",
+      "Bash(del:*)",
+      "Bash(dir:*)",
+      "Bash(\"C:\\Users\\wolfw\\source\\repos\\ReliabilityTesting\\build\\bin\\Release\\reliability_testing_camera.exe\")",
+      "Bash(timeout:*)",
+      "Bash(copy:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

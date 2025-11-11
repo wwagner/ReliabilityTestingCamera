@@ -8,7 +8,12 @@
       "Bash(timeout:*)",
       "Bash(copy:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git push:*)",
+      "Bash(cmd /c del \"C:\\Users\\wolfw\\source\\repos\\ReliabilityTesting\\start_reliability_camera.bat\")",
+      "Bash(cmd /c del \"C:\\Users\\wolfw\\source\\repos\\ReliabilityTesting\\start_simple.bat\")"
     ],
     "deny": [],
     "ask": []

@@ -5,21 +5,30 @@ A specialized event camera viewer for reliability testing and noise evaluation o
 ## Quick Start
 
 1. **Start the Application**:
-   - Double-click `start_reliability_camera.bat`
+   - Double-click `start.bat` (in root folder)
    - Or run: `build\bin\Release\reliability_testing_camera.exe`
 
 2. **First Use**:
    - Press **F1** for help
    - Camera status shown in control panel (green = connected)
-   - Three windows: Camera Views (center), Image Statistics (left), Controls (right)
+   - **Dual Viewers**: Left and Right viewers can independently show camera or loaded images
+   - Each viewer has a dropdown menu: Active Camera / Load Image... / Save Image...
    - Default configuration: bits 0 and 7 displayed
    - Configure settings in `event_config.ini` if needed
 
-3. **Basic Workflow**:
-   - Save baseline image → Load as reference → Analyze scattering
-   - See Help window (F1) for detailed instructions
+3. **Basic Workflow - New Independent Viewers**:
+   - **Option 1**: View live camera in both viewers simultaneously
+   - **Option 2**: Load different images in each viewer for comparison
+   - **Option 3**: Show live camera in one viewer, reference image in the other
+   - Use dropdown menus in each viewer to switch modes
 
-4. **If Camera Views window is missing**:
+4. **Loading Images**:
+   - Select "Load Image..." from viewer dropdown
+   - Click "Browse..." button for Windows file picker
+   - Or type full path manually
+   - Click "Load" to display
+
+5. **If Camera Views window is missing**:
    - Look for "Camera Views" title bar at the top
    - Try clicking and dragging in the black area
    - Delete `imgui.ini` and restart to reset window positions
@@ -34,6 +43,8 @@ This application enables non-expert users to:
 - Export data for analysis (CSV statistics, PNG heatmaps)
 
 **Key Features**:
+- **Dual Independent Viewers**: Each viewer can show camera feed or loaded images
+- **Windows File Browser**: Easy image selection with native file picker
 - Binary image mode (configurable bit extraction)
 - Three comparison modes (Overlay, Difference, Side-by-Side)
 - Real-time scattering detection with temporal tracking
@@ -77,15 +88,26 @@ See `event_config.ini` for complete settings with detailed explanations.
 
 ### 1. Image Capture & Management
 
+**Independent Viewer Controls**:
+- Each viewer (Left and Right) operates independently
+- Dropdown menu in each viewer: Active Camera / Load Image... / Save Image...
+- Can display different images in each viewer simultaneously
+- Switch between live camera and loaded images instantly
+
 **Save Image**:
-- Captures current camera frame with timestamp
+- Select "Save Image..." from viewer dropdown
+- Captures currently displayed image (camera or loaded)
+- Add optional comment/notes
 - Stores metadata (camera settings, user comments)
-- Format: `YYYY-MM-DDTHH-MM-SS_reliability_test.png` + `.json`
+- Format: `YYYY-MM-DDTHH-MM-SS_viewer_[Left/Right]Viewer.png` + `.json`
 
 **Load Image**:
-- Loads previously saved image for comparison
+- Select "Load Image..." from viewer dropdown
+- Click "Browse..." for Windows file picker (easy navigation)
+- Or type full path manually
+- Supports grayscale PNG images (automatically converted for display)
 - Automatically loads metadata if available
-- Supports images with or without metadata
+- Buttons: "Switch to Camera" and "Clear Loaded Image" when image is loaded
 
 ### 2. Image Comparison
 
@@ -343,7 +365,7 @@ erc_enabled = 1
 
 ```
 ReliabilityTesting/
-├── start_reliability_camera.bat    # Launch script
+├── start.bat                        # Launch script (runs from root)
 ├── event_config.ini                 # Configuration file
 ├── README.md                        # This file
 ├── PROJECT.md                       # Original specification
@@ -372,6 +394,14 @@ build/bin/Release/reliability_testing_camera.exe
 Or use Visual Studio 2022 to open CMakeLists.txt.
 
 ## Version History
+
+- **v1.1** (2025-01-11) - Dual Independent Viewers
+  - Independent viewer controls for left and right panels
+  - Windows file browser integration
+  - Each viewer can load/save/display independently
+  - Grayscale image format conversion
+  - Simplified launcher (start.bat)
+  - Enhanced error handling and debugging
 
 - **v1.0** - Complete implementation (Phases 1-6)
   - Single camera support
@@ -403,11 +433,12 @@ For issues or questions, see application help (F1) or documentation files.
 
 | Action | How To |
 |--------|--------|
-| Start App | Double-click `start_reliability_camera.bat` |
+| Start App | Double-click `start.bat` |
 | Get Help | Press **F1** |
-| Save Image | Button → Add comment → Save |
-| Load Image | Button → Enter path → Load |
-| Compare | Load image → "Compare Images" button |
+| Load Image | Viewer dropdown → "Load Image..." → Browse/type path → Load |
+| Save Image | Viewer dropdown → "Save Image..." → Add comment → Save |
+| Switch Viewer | Dropdown: "Active Camera" or use "Switch to Camera" button |
+| Compare | Load images in both viewers or use "Compare Images" button |
 | Scattering | Load reference → "Start Scattering Analysis" |
 | Export Stats | "Export Statistics (CSV)" |
 | Export Heatmap | "Export Heatmap (PNG)" |

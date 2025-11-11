@@ -46,6 +46,9 @@
 #include "app_config.h"
 #include "image_manager.h"
 #include "scattering_analyzer.h"
+#include "noise_analyzer.h"
+#include "ui/image_dialog.h"
+#include "ui/viewer_panel.h"
 
 // Camera features
 #include "camera/features/erc_feature.h"
@@ -93,26 +96,10 @@ std::unique_ptr<video::TextureManager> loaded_image_texture;
 std::string last_saved_path;
 std::string last_loaded_path;
 
-// Viewer mode for independent frame control
-enum class ViewerMode {
-    ACTIVE_CAMERA,   // Show live camera feed
-    LOADED_IMAGE     // Show loaded static image
-};
-
-struct ViewerState {
-    ViewerMode mode = ViewerMode::ACTIVE_CAMERA;
-    cv::Mat loaded_image;
-    ImageManager::ImageMetadata loaded_metadata;
-    std::unique_ptr<video::TextureManager> texture;
-    std::string last_loaded_path;
-    int selected_mode_index = 0;  // For dropdown: 0=Active Camera, 1=Load Image, 2=Save Image
-    bool show_load_dialog = false;
-    bool show_save_dialog = false;
-};
-
-// Left and right viewer states
-ViewerState left_viewer;
-ViewerState right_viewer;
+// Viewer panels (Phase 6 - Refactored in Phase 1.2)
+// ViewerMode enum and ViewerState struct moved to ui::ViewerPanel class
+std::unique_ptr<ui::ViewerPanel> left_viewer;
+std::unique_ptr<ui::ViewerPanel> right_viewer;
 
 // Comparison mode (Phase 4)
 enum class ComparisonMode {
@@ -236,9 +223,6 @@ void process_camera_frame(const cv::Mat& frame) {
         }
     }
 }
-
-// Forward declare file dialog function
-bool open_file_dialog(char* filepath, size_t filepath_size);
 
 // ============================================================================
 // Image Comparison Functions
@@ -1101,269 +1085,13 @@ void render_help_window() {
 }
 
 /**
- * Handle load image dialog for a viewer
+ * Handle load image dialog for a viewer (refactored to use ImageDialog)
  */
-void handle_viewer_load_dialog(const char* viewer_name, ViewerState& viewer) {
-    std::string popup_name = std::string("Load Image##") + viewer_name;
+// Old viewer functions removed - now handled by ui::ViewerPanel class
+// - handle_viewer_load_dialog()
+// - handle_viewer_save_dialog()
+// - render_viewer()
 
-    if (viewer.show_load_dialog) {
-        ImGui::OpenPopup(popup_name.c_str());
-        viewer.show_load_dialog = false;  // Open once
-    }
-
-    if (ImGui::BeginPopupModal(popup_name.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Load image for %s", viewer_name);
-        ImGui::Separator();
-
-        // Use separate static buffers for each viewer
-        static char left_filepath[512] = "";
-        static char right_filepath[512] = "";
-
-        // Select the correct buffer based on viewer name
-        char* filepath = (strcmp(viewer_name, "Left Viewer") == 0) ? left_filepath : right_filepath;
-
-        ImGui::Text("Image file path:");
-        std::string input_id = std::string("##FilePath_") + viewer_name;
-        ImGui::PushItemWidth(400);
-        ImGui::InputText(input_id.c_str(), filepath, 512);
-        ImGui::PopItemWidth();
-
-        ImGui::SameLine();
-        std::string browse_btn_id = std::string("Browse...##") + viewer_name;
-        if (ImGui::Button(browse_btn_id.c_str())) {
-            if (open_file_dialog(filepath, 512)) {
-                std::cout << "Selected file: " << filepath << std::endl;
-            }
-        }
-
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Click Browse to select a file, or enter the full path manually");
-
-        ImGui::Separator();
-
-        std::string load_btn_id = std::string("Load##") + viewer_name;
-        std::string cancel_btn_id = std::string("Cancel##") + viewer_name;
-
-        if (ImGui::Button(load_btn_id.c_str(), ImVec2(120, 0))) {
-            if (strlen(filepath) > 0) {
-                std::cout << "Attempting to load: " << filepath << std::endl;
-
-                cv::Mat loaded_img;
-                ImageManager::ImageMetadata metadata;
-
-                if (ImageManager::load_image(filepath, metadata, loaded_img)) {
-                    std::cout << "Image loaded successfully from disk" << std::endl;
-                    std::cout << "  Size: " << loaded_img.cols << "x" << loaded_img.rows << std::endl;
-                    std::cout << "  Type: " << loaded_img.type() << std::endl;
-                    std::cout << "  Channels: " << loaded_img.channels() << std::endl;
-
-                    // Store the loaded image
-                    viewer.loaded_image = loaded_img.clone();  // Clone to ensure we own the data
-                    viewer.loaded_metadata = metadata;
-                    viewer.last_loaded_path = filepath;
-                    viewer.mode = ViewerMode::LOADED_IMAGE;
-
-                    std::cout << "Image data stored in viewer state" << std::endl;
-
-                    // Create texture manager if not exists
-                    if (!viewer.texture) {
-                        std::cout << "Creating new texture manager..." << std::endl;
-                        viewer.texture = std::make_unique<video::TextureManager>();
-                    }
-
-                    // Upload loaded image to texture
-                    std::cout << "Uploading image to GPU texture..." << std::endl;
-                    try {
-                        // Convert grayscale to BGR if needed (TextureManager expects 3-channel images)
-                        cv::Mat texture_image;
-                        if (viewer.loaded_image.channels() == 1) {
-                            std::cout << "Converting grayscale to BGR for texture..." << std::endl;
-                            cv::cvtColor(viewer.loaded_image, texture_image, cv::COLOR_GRAY2BGR);
-                        } else {
-                            texture_image = viewer.loaded_image;
-                        }
-
-                        viewer.texture->upload_frame(texture_image);
-                        std::cout << "Texture upload successful" << std::endl;
-                    } catch (const std::exception& e) {
-                        std::cerr << "ERROR uploading texture: " << e.what() << std::endl;
-                    }
-
-                    std::cout << "Image loaded to " << viewer_name << ": " << filepath << std::endl;
-                    std::cout << "  Resolution: " << metadata.image_width << "x" << metadata.image_height << std::endl;
-
-                    filepath[0] = '\0';  // Clear path
-                } else {
-                    std::cerr << "Failed to load image from disk: " << filepath << std::endl;
-                }
-            }
-
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button(cancel_btn_id.c_str(), ImVec2(120, 0))) {
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
-}
-
-/**
- * Handle save image dialog for a viewer
- */
-void handle_viewer_save_dialog(const char* viewer_name, ViewerState& viewer) {
-    std::string popup_name = std::string("Save Image##") + viewer_name;
-
-    if (viewer.show_save_dialog) {
-        ImGui::OpenPopup(popup_name.c_str());
-        viewer.show_save_dialog = false;  // Open once
-    }
-
-    if (ImGui::BeginPopupModal(popup_name.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Save image from %s", viewer_name);
-        ImGui::Separator();
-
-        // Determine what image to save
-        cv::Mat image_to_save;
-        if (viewer.mode == ViewerMode::LOADED_IMAGE && !viewer.loaded_image.empty()) {
-            image_to_save = viewer.loaded_image;
-        } else if (viewer.mode == ViewerMode::ACTIVE_CAMERA && !camera_bits.combined.empty()) {
-            image_to_save = camera_bits.combined;
-        }
-
-        std::string ok_btn_id = std::string("OK##") + viewer_name;
-
-        if (image_to_save.empty()) {
-            ImGui::TextColored(ImVec4(1, 0, 0, 1), "No image to save!");
-            ImGui::Separator();
-            if (ImGui::Button(ok_btn_id.c_str(), ImVec2(120, 0))) {
-                ImGui::CloseCurrentPopup();
-            }
-        } else {
-            // Use separate static buffers for each viewer
-            static char left_comment[512] = "";
-            static char right_comment[512] = "";
-
-            // Select the correct buffer based on viewer name
-            char* comment = (strcmp(viewer_name, "Left Viewer") == 0) ? left_comment : right_comment;
-
-            ImGui::Text("Comment:");
-            std::string comment_id = std::string("##Comment_") + viewer_name;
-            ImGui::InputTextMultiline(comment_id.c_str(), comment, 512, ImVec2(400, 100));
-
-            ImGui::Separator();
-
-            std::string save_btn_id = std::string("Save##") + viewer_name;
-            std::string cancel_btn_id = std::string("Cancel##") + viewer_name;
-
-            if (ImGui::Button(save_btn_id.c_str(), ImVec2(120, 0))) {
-                auto& config = AppConfig::instance();
-
-                // Create metadata with user comment
-                auto metadata = ImageManager::create_metadata(image_to_save, std::string(comment));
-
-                // Save image and metadata
-                std::string saved_path = ImageManager::save_image(
-                    image_to_save,
-                    metadata,
-                    config.camera_settings().capture_directory,
-                    std::string("viewer_") + viewer_name
-                );
-
-                if (!saved_path.empty()) {
-                    std::cout << "Image saved from " << viewer_name << ": " << saved_path << std::endl;
-                    comment[0] = '\0';  // Clear comment
-                } else {
-                    std::cerr << "Failed to save image" << std::endl;
-                }
-
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button(cancel_btn_id.c_str(), ImVec2(120, 0))) {
-                ImGui::CloseCurrentPopup();
-            }
-        }
-
-        ImGui::EndPopup();
-    }
-}
-
-/**
- * Render individual viewer with dropdown selector
- */
-void render_viewer(const char* name, ViewerState& viewer, bool is_left) {
-    ImGui::Text("%s", name);
-
-    // Update dropdown index based on current mode (for display purposes)
-    int current_mode_display = (viewer.mode == ViewerMode::ACTIVE_CAMERA) ? 0 : 0;
-    if (!viewer.loaded_image.empty() && viewer.mode == ViewerMode::LOADED_IMAGE) {
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0, 1, 0, 1), "[Loaded]");
-    }
-
-    // Dropdown selector for viewer mode - MUST have unique ID per viewer
-    ImGui::PushItemWidth(200);
-    const char* mode_items[] = { "Active Camera", "Load Image...", "Save Image..." };
-    int temp_index = viewer.selected_mode_index;
-
-    // Create unique combo ID by appending viewer name
-    std::string combo_id = std::string("##ViewerMode_") + name;
-    if (ImGui::Combo(combo_id.c_str(), &temp_index, mode_items, IM_ARRAYSIZE(mode_items))) {
-        // Handle selection change
-        if (temp_index == 1) {  // Load Image
-            viewer.show_load_dialog = true;
-            // Don't change selected_mode_index - let it stay at 0 so dropdown resets
-        } else if (temp_index == 2) {  // Save Image
-            viewer.show_save_dialog = true;
-            // Don't change selected_mode_index - let it stay at 0 so dropdown resets
-        } else if (temp_index == 0) {  // Active Camera
-            viewer.mode = ViewerMode::ACTIVE_CAMERA;
-            viewer.selected_mode_index = 0;
-        }
-    }
-    ImGui::PopItemWidth();
-
-    // Add switch button when showing loaded image
-    if (viewer.mode == ViewerMode::LOADED_IMAGE && !viewer.loaded_image.empty()) {
-        if (ImGui::Button("Switch to Camera")) {
-            viewer.mode = ViewerMode::ACTIVE_CAMERA;
-            viewer.selected_mode_index = 0;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Clear Loaded Image")) {
-            viewer.mode = ViewerMode::ACTIVE_CAMERA;
-            viewer.loaded_image = cv::Mat();
-            viewer.texture.reset();
-            viewer.selected_mode_index = 0;
-        }
-    }
-
-    ImGui::Separator();
-
-    // Display image based on viewer mode
-    ImVec2 img_size = ImGui::GetContentRegionAvail();
-
-    if (viewer.mode == ViewerMode::LOADED_IMAGE && !viewer.loaded_image.empty()) {
-        // Show loaded image
-        if (viewer.texture && viewer.texture->get_texture_id() > 0) {
-            GLuint tex_id = viewer.texture->get_texture_id();
-            ImGui::Image((void*)(intptr_t)tex_id, img_size);
-        } else {
-            ImGui::TextColored(ImVec4(1, 1, 0, 1), "Preparing texture...");
-        }
-    } else if (viewer.mode == ViewerMode::ACTIVE_CAMERA) {
-        // Show live camera feed
-        if (app_state && app_state->texture_manager(0).get_texture_id() > 0) {
-            GLuint tex_id = app_state->texture_manager(0).get_texture_id();
-            ImGui::Image((void*)(intptr_t)tex_id, img_size);
-        } else {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No camera feed");
-        }
-    } else {
-        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Select an option above");
-    }
-}
 
 /**
  * Render dual camera view (left = live, right = loaded/comparison)
@@ -1379,16 +1107,30 @@ void render_camera_views() {
     float view_width = (window_size.x - 20) / 2.0f;  // Two views side by side
     float view_height = window_size.y - 40;
 
+    // Get camera texture info
+    GLuint camera_tex_id = 0;
+    int cam_width = 0;
+    int cam_height = 0;
+    if (app_state && app_state->texture_manager(0).get_texture_id() > 0) {
+        camera_tex_id = app_state->texture_manager(0).get_texture_id();
+        cam_width = app_state->texture_manager(0).get_width();
+        cam_height = app_state->texture_manager(0).get_height();
+    }
+
     // Left viewer
     ImGui::BeginChild("LeftViewer", ImVec2(view_width, view_height), true);
-    render_viewer("Left Viewer", left_viewer, true);
+    if (left_viewer) {
+        left_viewer->render(camera_bits.combined, camera_tex_id, cam_width, cam_height);
+    }
     ImGui::EndChild();
 
     ImGui::SameLine();
 
     // Right viewer
     ImGui::BeginChild("RightViewer", ImVec2(view_width, view_height), true);
-    render_viewer("Right Viewer", right_viewer, false);
+    if (right_viewer) {
+        right_viewer->render(camera_bits.combined, camera_tex_id, cam_width, cam_height);
+    }
     ImGui::EndChild();
 
     ImGui::End();
@@ -1420,6 +1162,10 @@ int main(int argc, char* argv[]) {
         std::cout << "  Binary Bit 2: " << config.camera_settings().binary_bit_2 << std::endl;
         std::cout << "  Accumulation Time: " << config.camera_settings().accumulation_time_us << " μs" << std::endl;
     }
+
+    // Initialize viewer panels
+    left_viewer = std::make_unique<ui::ViewerPanel>("Left Viewer");
+    right_viewer = std::make_unique<ui::ViewerPanel>("Right Viewer");
 
     // Initialize camera BEFORE UI (following EventCamera pattern)
     bool camera_connected = initialize_camera();
@@ -1518,15 +1264,11 @@ int main(int argc, char* argv[]) {
             }
 
             render_camera_views();
-            render_control_panel();
-            render_statistics_panel();
+            // render_control_panel();  // Removed per user request
+            // render_statistics_panel();  // Removed per user request
             render_help_window();
 
-            // Handle viewer dialogs
-            handle_viewer_load_dialog("Left Viewer", left_viewer);
-            handle_viewer_save_dialog("Left Viewer", left_viewer);
-            handle_viewer_load_dialog("Right Viewer", right_viewer);
-            handle_viewer_save_dialog("Right Viewer", right_viewer);
+            // Viewer dialogs now handled internally by ViewerPanel::render()
 
             // Update texture from frame buffer
             if (camera_connected && app_state) {
@@ -1588,37 +1330,4 @@ int main(int argc, char* argv[]) {
 #include <commdlg.h>
 #endif
 
-bool open_file_dialog(char* filepath, size_t filepath_size) {
-#ifdef _WIN32
-    OPENFILENAMEA ofn;
-    char szFile[512] = "";
-
-    // Copy current path if it exists
-    if (filepath && strlen(filepath) > 0) {
-        strncpy_s(szFile, sizeof(szFile), filepath, _TRUNCATE);
-    }
-
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = NULL;
-    ofn.lpstrFile = szFile;
-    ofn.nMaxFile = sizeof(szFile);
-    ofn.lpstrFilter = "PNG Images\0*.png\0All Files\0*.*\0";
-    ofn.nFilterIndex = 1;
-    ofn.lpstrFileTitle = NULL;
-    ofn.nMaxFileTitle = 0;
-    ofn.lpstrInitialDir = NULL;
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
-
-    if (GetOpenFileNameA(&ofn) == TRUE) {
-        // Copy selected file to output buffer
-        strncpy_s(filepath, filepath_size, szFile, _TRUNCATE);
-        return true;
-    }
-    return false;
-#else
-    // Not Windows - this is a placeholder
-    std::cerr << "File dialog not implemented for this platform" << std::endl;
-    return false;
-#endif
-}
+// Old open_file_dialog() function removed - now handled by ui::ImageDialog class

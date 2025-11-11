@@ -3,22 +3,24 @@
 Complete implementation history from initial planning through final deployment.
 
 **Project Duration**: November 2025
-**Total Phases**: 6
+**Total Phases**: 7
 **Status**: Complete ✅
 
 ---
 
 ## Overview
 
-This document chronicles the complete development of the Reliability Testing Camera application, implemented through six well-defined phases. Each phase built upon the previous, resulting in a fully-featured, user-friendly application for event camera reliability testing.
+This document chronicles the complete development of the Reliability Testing Camera application, implemented through seven well-defined phases. Each phase built upon the previous, resulting in a fully-featured, user-friendly application for event camera reliability testing with quantitative noise analysis capabilities.
 
 **Final Deliverables**:
-- Single event camera viewer with binary image processing
+- Dual independent viewers with binary image processing (Bit 0 OR Bit 7)
 - Image capture and persistence with metadata
+- Quantitative noise analysis with SNR calculation
 - Three-mode image comparison system
 - Real-time scattering analysis with temporal tracking
-- Data export capabilities (CSV, PNG)
+- Data export capabilities (CSV, PNG, text reports)
 - Comprehensive help system and tooltips
+- Clean, maintainable codebase with modular architecture
 
 ---
 
@@ -610,6 +612,123 @@ Each phase was validated before proceeding:
 
 ---
 
+## Phase 7: Noise Analysis & Code Refactoring
+
+**Completion Date**: 2025-11-11
+**Objective**: Add quantitative noise analysis and improve code maintainability
+
+### Accomplishments
+
+✅ **Noise Analysis Feature**:
+- Implemented `NoiseAnalyzer` class for quantitative image analysis
+- Dot detection using threshold-based segmentation with OpenCV contours
+- Signal/noise separation and statistical analysis
+- SNR calculation in decibels (dB) with quality ratings
+- Integrated into both viewer panels
+- Supports both live camera feed and loaded images
+
+**Analysis Capabilities**:
+- Detects bright dots with configurable parameters:
+  - Threshold (0-255)
+  - Min/Max dot area (pixels)
+  - Circularity filter (0-1)
+- Calculates comprehensive statistics:
+  - Signal mean, std dev, range, pixel count
+  - Noise mean, std dev, range, pixel count
+  - SNR (dB), contrast ratio
+- Three visualization modes:
+  - Detected circles (green outlines)
+  - Signal only (dots isolated)
+  - Noise only (background isolated)
+- Export results to timestamped text file
+
+✅ **Code Refactoring - Phase 1**:
+Systematic cleanup to improve maintainability and reduce code size.
+
+**Phase 1.1 - Dead Code Cleanup**:
+- Removed 366 lines of commented legacy code from settings_panel.cpp
+- Reduced settings_panel.cpp from 1,023 to 657 lines (-36%)
+- Cleaner codebase, easier to navigate
+
+**Phase 2.1 - Dialog Unification**:
+- Created unified dialog system (`ui/image_dialog.h` and `.cpp`)
+- Eliminated 300+ lines of duplicated load/save dialog code
+- Centralized dialog state management
+- Consistent user experience across viewers
+
+**Phase 1.2 - ViewerPanel Extraction**:
+- Created `ViewerPanel` class encapsulating all viewer logic
+- Extracted viewer state and rendering from main.cpp
+- Reduced main.cpp from 1,820 to 1,323 lines (-27%, 497 lines removed)
+- Single responsibility principle applied
+- Each viewer is now self-contained
+
+**Total Code Reduction**: 863 lines removed while maintaining functionality
+
+✅ **Bug Fixes**:
+- Fixed camera feed display after refactoring (texture parameters)
+- Fixed visualization crash for grayscale images (conversion to BGR)
+- Fixed image aspect ratio preservation in viewers
+
+✅ **UI Improvements**:
+- Added image source indicator to noise analysis
+  - "Analyzing: Camera feed (Bit 0 OR Bit 7)"
+  - "Analyzing: Loaded image file"
+- Loaded image filename displayed in viewer title bar
+- Improved visualization texture handling
+
+### Technical Details
+
+**New Files Added**:
+1. `include/noise_analyzer.h` - Noise analysis class definition
+2. `src/noise_analyzer.cpp` - Implementation (332 lines)
+3. `include/ui/image_dialog.h` - Unified dialog system
+4. `src/ui/image_dialog.cpp` - Dialog implementation (228 lines)
+5. `include/ui/viewer_panel.h` - Viewer panel class definition
+6. `src/ui/viewer_panel.cpp` - Viewer implementation (387 lines)
+
+**Files Refactored**:
+- `src/main.cpp` - Reduced by 497 lines through extraction
+- `src/ui/settings_panel.cpp` - Reduced by 366 lines through cleanup
+- `CMakeLists.txt` - Updated to include new source files
+
+**Architecture Improvements**:
+- Encapsulation: Viewer logic contained in ViewerPanel class
+- DRY principle: Eliminated dialog code duplication
+- Single responsibility: Each class has clear purpose
+- Maintainability: Easier to modify and extend
+
+### Testing & Validation
+
+**Noise Analysis Testing**:
+- Tested on dot pattern images (25 dots detected)
+- SNR calculation verified
+- Visualization modes functional
+- Export to text file working
+
+**Refactoring Validation**:
+- All builds successful after each refactoring step
+- Camera feed displays correctly in both viewers
+- Load/save dialogs work identically in both viewers
+- Noise analysis functional in both viewers
+- No regressions in existing features
+
+### Impact
+
+**For Users**:
+- New quantitative analysis capability for image quality assessment
+- Clearer indication of what image is being analyzed
+- No change to user interface or workflow
+
+**For Developers**:
+- Reduced main.cpp complexity significantly (1,323 lines vs 1,820)
+- Eliminated code duplication (unified dialogs)
+- Cleaner, more maintainable codebase
+- Easier to add new viewer features
+- Modular architecture for future extensions
+
+---
+
 ## Lessons Learned
 
 ### What Worked Well
@@ -653,6 +772,12 @@ Each phase was validated before proceeding:
 
 ## Version History
 
+### v1.1 (2025-11-11)
+- Added noise analysis with SNR calculation
+- Code refactoring and cleanup (863 lines removed)
+- Enhanced UI with image source indicators
+- Bug fixes for visualization and camera display
+
 ### v1.0 (2025-11-11)
 - Complete implementation through Phase 6
 - All features functional
@@ -665,6 +790,7 @@ Each phase was validated before proceeding:
 4. Image Comparison & Statistics
 5. Scattering Analysis
 6. UI Polish & User Testing
+7. Noise Analysis & Code Refactoring
 
 ---
 

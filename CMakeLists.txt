@@ -70,6 +70,7 @@ add_executable(reliability_testing_camera
     src/app_config.cpp
     src/image_manager.cpp
     src/scattering_analyzer.cpp
+    src/noise_analyzer.cpp
     # Core module (application state)
     src/core/frame_sync.cpp
     src/core/event_metrics.cpp
@@ -99,6 +100,8 @@ add_executable(reliability_testing_camera
     src/ui/settings_panel.cpp
     src/ui/features_panel.cpp
     src/ui/camera_feed_panel.cpp
+    src/ui/image_dialog.cpp
+    src/ui/viewer_panel.cpp
     ${IMGUI_SOURCES}
 )
 

@@ -36,16 +36,18 @@ A specialized event camera viewer for reliability testing and noise evaluation o
 ## Overview
 
 This application enables non-expert users to:
-- View live event camera feed with binary image processing
+- View live event camera feed with binary image processing (Bit 0 OR Bit 7)
 - Save images with timestamps and metadata
 - Compare live feed with reference images
+- Perform quantitative noise analysis (SNR, dot detection)
 - Detect and track noise pixels (scattering analysis)
-- Export data for analysis (CSV statistics, PNG heatmaps)
+- Export data for analysis (CSV statistics, PNG heatmaps, text reports)
 
 **Key Features**:
 - **Dual Independent Viewers**: Each viewer can show camera feed or loaded images
 - **Windows File Browser**: Easy image selection with native file picker
-- Binary image mode (configurable bit extraction)
+- **Noise Analysis**: SNR calculation, bright dot detection, signal/noise statistics
+- Binary image mode (configurable bit extraction with OR combination)
 - Three comparison modes (Overlay, Difference, Side-by-Side)
 - Real-time scattering detection with temporal tracking
 - Heatmap visualization of noise patterns
@@ -132,7 +134,69 @@ Compare live camera feed with loaded reference image.
 - Pixels in loaded only
 - Difference count and percentage
 
-### 3. Scattering Analysis
+### 3. Noise Analysis
+
+Quantitative noise characterization for binary images with bright dot detection and signal-to-noise ratio (SNR) calculation.
+
+**How It Works**:
+- Analyzes either live camera feed (Bit 0 OR Bit 7) or loaded images
+- Detects bright dots using threshold-based segmentation
+- Separates signal (dots) from noise (background)
+- Calculates SNR in decibels (dB)
+- Provides comprehensive statistics on both signal and noise regions
+
+**Running Analysis**:
+1. Open "Noise Analysis" section in any viewer
+2. Adjust detection parameters if needed:
+   - **Threshold**: Binary threshold for detecting bright dots (0-255)
+   - **Min/Max Dot Area**: Size range in pixels to filter detected dots
+   - **Circularity**: Shape filter (0-1, where 1 is perfect circle)
+3. Click "Run Noise Analysis"
+4. View results organized by category
+
+**Results Provided**:
+
+**Detected Dots**:
+- Count of dots found matching your criteria
+- Based on threshold, size, and circularity constraints
+
+**Signal Statistics** (dots):
+- Mean, standard deviation, range, pixel count
+- Represents the bright dots you're trying to detect
+
+**Noise Statistics** (background):
+- Mean, standard deviation, range, pixel count
+- Represents everything that's not a dot
+
+**Quality Metrics**:
+- **SNR (dB)**: Signal-to-noise ratio
+  - 🟢 > 40 dB = Excellent
+  - 🟡 20-40 dB = Good
+  - 🔴 < 20 dB = Poor
+- **Contrast Ratio**: Signal mean / noise standard deviation
+
+**Visualization Options**:
+- **Detected Circles**: Shows detected dots with green circles
+- **Signal Only**: Displays only the dot regions
+- **Noise Only**: Displays only the background regions
+- Click "Show Visualization" to generate preview
+
+**Export Results**:
+- Click "Export Results" to save analysis to timestamped text file
+- Format: `noise_analysis_YYYYMMDD_HHMMSS.txt`
+- Contains all statistics and parameters used
+
+**Image Source Indicator**:
+- Camera feed: "Analyzing: Camera feed (Bit 0 OR Bit 7)"
+- Loaded image: "Analyzing: Loaded image file"
+
+**Typical Use Cases**:
+- Characterize dot pattern quality in test images
+- Compare signal quality between different camera configurations
+- Validate that dots are well-separated from background noise
+- Measure image quality for different lighting or lens conditions
+
+### 4. Scattering Analysis
 
 Detects **scattering pixels** - noise pixels that appear in live camera but NOT in reference image.
 
@@ -163,7 +227,7 @@ Detects **scattering pixels** - noise pixels that appear in live camera but NOT 
 - Keeps reference image
 - Start fresh tracking session
 
-### 4. Data Export
+### 5. Data Export
 
 **Export Statistics (CSV)**:
 - Scattering metrics and temporal tracking

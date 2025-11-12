@@ -1152,6 +1152,20 @@ int main(int argc, char* argv[]) {
     std::cout << "=== Reliability Testing Camera ===" << std::endl;
     std::cout << "Single event camera viewer for reliability testing" << std::endl;
 
+    // Set plugin path to local plugins folder (required for deployment)
+    // This must be done BEFORE any Metavision HAL operations
+    std::filesystem::path exe_path = std::filesystem::path(argv[0]).parent_path();
+    std::filesystem::path plugin_path = exe_path / "plugins";
+
+    std::string plugin_path_str = plugin_path.string();
+    std::cout << "Setting HAL plugin path to: " << plugin_path_str << std::endl;
+
+#ifdef _WIN32
+    _putenv_s("MZ_HAL_PLUGIN_PATH", plugin_path_str.c_str());
+#else
+    setenv("MZ_HAL_PLUGIN_PATH", plugin_path_str.c_str(), 1);
+#endif
+
     // Load configuration from INI file (read-only)
     auto& config = AppConfig::instance();
     if (!config.load("event_config.ini")) {

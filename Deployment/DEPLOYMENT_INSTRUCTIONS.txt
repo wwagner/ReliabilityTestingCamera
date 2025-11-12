@@ -1,0 +1,202 @@
+=====================================================================
+DEPLOYMENT INSTRUCTIONS - Reliability Testing Camera
+=====================================================================
+
+PACKAGE CONTENTS
+----------------
+This deployment package includes:
+- reliability_testing_camera.exe (main application)
+- START_CAMERA.bat (recommended launcher)
+- plugins/silky_common_plugin.dll (HAL plugin for event camera)
+- All necessary DLL dependencies (Release builds only)
+- event_config.ini (camera configuration file)
+- Documentation files
+
+SYSTEM REQUIREMENTS
+-------------------
+1. Windows 10/11 (64-bit)
+2. Visual C++ Redistributable 2022 (x64)
+   Download: https://aka.ms/vs/17/release/vc_redist.x64.exe
+3. Event camera hardware (Prophesee/CenturyArks compatible)
+
+INSTALLATION
+------------
+1. Extract the entire ZIP file to a folder on your computer
+2. Install Visual C++ Redistributable 2022 (x64) if not already installed
+3. Verify the folder structure:
+   YourFolder/
+   ├── reliability_testing_camera.exe
+   ├── START_CAMERA.bat
+   ├── plugins/
+   │   └── silky_common_plugin.dll
+   ├── *.dll (all dependency DLLs)
+   └── event_config.ini
+
+HOW TO RUN
+----------
+OPTION 1 (RECOMMENDED): Use the Launcher
+   - Double-click START_CAMERA.bat
+   - This sets the correct plugin path before starting the application
+   - Most reliable method for self-contained deployment
+
+OPTION 2: Direct Execution
+   - If you have Metavision SDK installed on your system
+   - Double-click reliability_testing_camera.exe
+   - The application will use system plugins from C:\Program Files\CenturyArks\plugins
+
+OPTION 3: Manual Plugin Installation (Alternative)
+   - Create folder: C:\Program Files\CenturyArks\plugins
+   - Copy silky_common_plugin.dll to that folder
+   - Run reliability_testing_camera.exe directly
+
+CONFIGURATION
+-------------
+Edit event_config.ini to customize:
+- Camera bias settings (sensitivity, thresholds)
+- Frame accumulation time (affects frame rate)
+- Binary bit extraction (for reliability testing)
+- Anti-flicker, ERC, ROI settings
+- Capture directory for saved images
+
+See the comments in event_config.ini for detailed explanations.
+
+FIRST RUN
+---------
+When you start the application:
+
+1. Console window will show initialization messages
+2. Look for: "Setting HAL plugin path to: [folder]\plugins"
+3. Camera detection: "Found X camera(s)"
+4. If no camera: "Running in simulation mode"
+5. Main window opens with camera feed (or black screen if no camera)
+
+Expected messages:
+   === Reliability Testing Camera ===
+   Setting HAL plugin path to: [your folder]\plugins
+   Configuration loaded from event_config.ini
+   Initializing single camera...
+   Found 1 camera(s)
+   Camera started successfully
+
+TROUBLESHOOTING
+---------------
+
+Problem: "procedure entry point could not be located in dynamic link library"
+Solution:
+   - Use START_CAMERA.bat instead of running .exe directly
+   - OR install Visual C++ Redistributable 2022 (x64)
+   - Make sure all DLLs are in the same folder as the .exe
+
+Problem: "[HAL][WARNING] no plugin found"
+Solution:
+   - Use START_CAMERA.bat launcher
+   - OR copy plugins/silky_common_plugin.dll to C:\Program Files\CenturyArks\plugins\
+
+Problem: "No cameras detected"
+Solution:
+   - Check camera is plugged in via USB
+   - Check Device Manager for "CenturyArks" or event camera device
+   - Try a different USB port (preferably USB 3.0)
+   - Application will run in simulation mode without camera
+
+Problem: Camera detected but not starting
+Solution:
+   - Check USB connection quality
+   - If you see USB3 warning, try a USB 3.0 port (not required, just recommended)
+   - Make sure no other application is using the camera
+
+Problem: DLL errors on startup
+Solution:
+   - Verify Visual C++ Redistributable 2022 (x64) is installed
+   - Don't mix files from different builds - extract all files from ZIP
+   - Right-click DLLs → Properties → Unblock if coming from another computer
+
+USING THE APPLICATION
+---------------------
+
+Main Features:
+1. Live Camera Feed - Real-time event camera visualization
+2. Binary Stream Mode - Extract specific bits for reliability testing
+3. Image Capture - Save current frame with metadata
+4. Image Loading - Load and compare saved images
+5. Comparison Tools - Overlay, difference, side-by-side views
+6. Scattering Analysis - Detect and analyze pixel scattering
+7. Noise Analysis - Statistical noise evaluation
+
+Keyboard Shortcuts:
+- See in-app Help menu for full list
+
+Camera Controls:
+- Adjust bias settings in Settings panel
+- Configure features (ERC, anti-flicker, ROI) in Features panel
+- Monitor camera status in real-time
+
+TECHNICAL DETAILS
+-----------------
+
+Plugin Path Resolution:
+The application looks for plugins in this order:
+1. MZ_HAL_PLUGIN_PATH environment variable (set by START_CAMERA.bat)
+2. System installation: C:\Program Files\CenturyArks\plugins
+3. Local plugins/ subfolder (low priority, not always checked first)
+
+This is why START_CAMERA.bat is recommended - it sets MZ_HAL_PLUGIN_PATH
+before the application starts, ensuring local plugins are used.
+
+Build Configuration:
+- Architecture: x64 (64-bit)
+- Build type: Release (optimized, no debug symbols)
+- All DLLs are Release builds (no *_d.dll files)
+
+Dependencies:
+- Metavision HAL and SDK libraries
+- OpenCV 4.x
+- Boost 1.78
+- OGRE 3D rendering engine
+- GLFW and GLEW for OpenGL
+- ImGui for user interface
+
+DEPLOYMENT NOTES
+----------------
+
+Self-Contained Deployment:
+This package is designed to be self-contained and portable:
+- No installation required
+- All dependencies included
+- No registry modifications
+- Can run from any folder
+- Can run from USB drive
+
+Network Deployment:
+Safe to deploy via network share:
+- Copy entire folder to target machines
+- Users run START_CAMERA.bat
+- No administrator rights required (unless installing VC++ Redist)
+
+Multiple Installations:
+- Can have multiple copies in different folders
+- Each copy is independent
+- Configuration files are local to each installation
+
+UNINSTALLATION
+--------------
+Simply delete the folder - no registry cleanup needed.
+
+UPDATES
+-------
+To update to a newer version:
+1. Close the application
+2. Replace all files with new deployment package
+3. Configuration files (event_config.ini) can be preserved
+
+SUPPORT
+-------
+For issues, questions, or bug reports:
+- Check this documentation first
+- Review console output for error messages
+- Check Windows Event Viewer for detailed errors
+- Refer to the project README.md for more information
+
+Version: 1.0.0
+Build Date: 2025-11-12
+Platform: Windows 10/11 (x64)

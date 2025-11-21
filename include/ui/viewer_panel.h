@@ -10,11 +10,13 @@
 
 #include <string>
 #include <memory>
+#include <chrono>
 #include <opencv2/core.hpp>
 #include "image_manager.h"
 #include "video/texture_manager.h"
 #include "noise_analyzer.h"
 #include "ui/image_dialog.h"
+#include "ui/event_rate_chart.h"
 
 namespace ui {
 
@@ -75,6 +77,12 @@ public:
      */
     const cv::Mat& get_loaded_image() const { return loaded_image_; }
 
+    /**
+     * @brief Update event count for real-time rate calculation
+     * @param event_count Number of events in current frame
+     */
+    void update_event_count(uint64_t event_count);
+
 private:
     // Identity
     std::string name_;
@@ -100,6 +108,18 @@ private:
     DotDetectionParams noise_params_;
     std::unique_ptr<video::TextureManager> noise_viz_texture_;
 
+    // Focus adjust state
+    bool show_focus_adjust_window_ = false;
+    float events_per_second_ = 0.0f;
+
+    // Event counting for real-time rate calculation
+    uint64_t total_event_count_ = 0;
+    std::chrono::steady_clock::time_point last_event_count_time_;
+    uint64_t last_event_count_ = 0;
+
+    // Event rate chart
+    std::unique_ptr<EventRateChart> event_chart_;
+
     /**
      * @brief Render mode dropdown and controls
      */
@@ -122,6 +142,16 @@ private:
      * @param camera_frame Shared camera frame buffer (for ACTIVE_CAMERA mode)
      */
     void render_noise_analysis(const cv::Mat& camera_frame);
+
+    /**
+     * @brief Render filters section (analog biases and trail filter)
+     */
+    void render_filters();
+
+    /**
+     * @brief Render focus adjust status window
+     */
+    void render_focus_adjust_window();
 
     /**
      * @brief Handle load image dialog

@@ -33,10 +33,12 @@ void TextureManager::upload_frame(const cv::Mat& frame) {
 
     ensure_texture_created();
 
-    // Assume frame is already in RGB format
-    // (caller should convert BGR to RGB if needed)
+    // Convert to RGB format for OpenGL
     cv::Mat rgb_frame;
-    if (frame.channels() == 3) {
+    if (frame.channels() == 1) {
+        // Convert grayscale to RGB
+        cv::cvtColor(frame, rgb_frame, cv::COLOR_GRAY2RGB);
+    } else if (frame.channels() == 3) {
         // If the frame is BGR, convert to RGB
         if (frame.type() == CV_8UC3) {
             cv::cvtColor(frame, rgb_frame, cv::COLOR_BGR2RGB);

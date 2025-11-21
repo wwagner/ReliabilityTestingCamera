@@ -32,9 +32,13 @@ struct LoadDialogState {
 struct SaveDialogState {
     bool show_dialog = false;
     std::string comment;
+    std::string filepath;
 
     void open() { show_dialog = true; }
-    void reset() { comment.clear(); }
+    void reset() {
+        comment.clear();
+        filepath.clear();
+    }
 };
 
 /**
@@ -87,12 +91,21 @@ public:
 
 private:
     /**
-     * @brief Open native Windows file browser
+     * @brief Open native Windows file browser for loading
      *
      * @param filepath Output - selected file path
      * @return true if user selected a file
      */
     static bool open_file_browser(std::string& filepath);
+
+    /**
+     * @brief Open native Windows file browser for saving
+     *
+     * @param filepath Output - selected file path with default suggestion
+     * @param initial_dir Initial directory (e.g., "C:\\")
+     * @return true if user selected a file
+     */
+    static bool open_save_file_browser(std::string& filepath, const std::string& initial_dir);
 };
 
 } // namespace ui

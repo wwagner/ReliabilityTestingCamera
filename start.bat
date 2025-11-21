@@ -13,7 +13,7 @@ echo.
 REM Get the directory where this batch file is located
 set "ROOT_DIR=%~dp0"
 
-REM Set PATH to include the Release directory (for DLLs)
+REM Set PATH to include the build bin Release directory (for DLLs)
 set "PATH=%ROOT_DIR%build\bin\Release;%PATH%"
 
 REM Run the application from the root directory

@@ -95,7 +95,6 @@ public:
      */
     static ImageMetadata create_metadata(const cv::Mat& image, const std::string& comment);
 
-private:
     /**
      * Save metadata as JSON
      * @param filepath Path to JSON file
@@ -103,6 +102,8 @@ private:
      * @return true if successful
      */
     static bool save_metadata_json(const std::string& filepath, const ImageMetadata& metadata);
+
+private:
 
     /**
      * Load metadata from JSON

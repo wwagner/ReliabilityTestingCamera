@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <atomic>
 
 /**
  * CameraManager handles enumeration, selection, and initialization of SilkyEvCam event cameras.
@@ -96,6 +97,11 @@ public:
      */
     static std::vector<std::string> list_available_cameras();
 
+    /**
+     * Get current event count (for focus adjust monitoring)
+     */
+    uint64_t get_event_count() const { return event_count_; }
+
 private:
     CameraManager() = default;
 
@@ -109,6 +115,9 @@ private:
     std::unique_ptr<Metavision::PeriodicFrameGenerationAlgorithm> frame_generator_;
     FrameCallback frame_callback_;
     bool camera_started_ = false;
+
+    // Event counting for focus adjust
+    std::atomic<uint64_t> event_count_{0};
 
     /**
      * Open camera by serial number or index

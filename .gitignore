@@ -4,6 +4,9 @@ bin/
 obj/
 out/
 
+# Deployment directory (for packaging only)
+Deployment/
+
 # Visual Studio
 .vs/
 *.user

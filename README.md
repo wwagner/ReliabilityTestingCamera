@@ -1,58 +1,42 @@
 # Reliability Testing Camera
 
-A specialized event camera viewer for reliability testing and noise evaluation of CenturyArks SilkyEvCam HD event cameras.
+A streamlined event camera viewer for reliability testing and noise evaluation of CenturyArks SilkyEvCam HD event cameras.
 
 ## Quick Start
 
 1. **Start the Application**:
-   - Double-click `start.bat` (in root folder)
+   - Double-click `start.bat` from the root folder
    - Or run: `build\bin\Release\reliability_testing_camera.exe`
 
 2. **First Use**:
    - Press **F1** for help
-   - Camera status shown in control panel (green = connected)
-   - **Dual Viewers**: Left and Right viewers can independently show camera or loaded images
-   - Each viewer has a dropdown menu: Active Camera / Load Image... / Save Image...
-   - Default configuration: bits 0 and 7 displayed
+   - Camera status shown in Status panel (green = connected)
+   - Two windows: Status (left), Camera View (center)
+   - Default configuration: bits 5 and 6 displayed
    - Configure settings in `event_config.ini` if needed
 
-3. **Basic Workflow - New Independent Viewers**:
-   - **Option 1**: View live camera in both viewers simultaneously
-   - **Option 2**: Load different images in each viewer for comparison
-   - **Option 3**: Show live camera in one viewer, reference image in the other
-   - Use dropdown menus in each viewer to switch modes
-
-4. **Loading Images**:
-   - Select "Load Image..." from viewer dropdown
-   - Click "Browse..." button for Windows file picker
-   - Or type full path manually
-   - Click "Load" to display
-
-5. **If Camera Views window is missing**:
-   - Look for "Camera Views" title bar at the top
-   - Try clicking and dragging in the black area
-   - Delete `imgui.ini` and restart to reset window positions
+3. **Basic Workflow**:
+   - View live camera feed
+   - Load/save images for analysis
+   - Run noise analysis on images
+   - Adjust camera filters in real-time
 
 ## Overview
 
-This application enables non-expert users to:
-- View live event camera feed with binary image processing (Bit 0 OR Bit 7)
-- Save images with timestamps and metadata
-- Compare live feed with reference images
-- Perform quantitative noise analysis (SNR, dot detection)
-- Detect and track noise pixels (scattering analysis)
-- Export data for analysis (CSV statistics, PNG heatmaps, text reports)
+This application enables reliability testing with:
+- Single camera viewer with integrated controls
+- Real-time binary image processing
+- Noise analysis with SNR/contrast measurements
+- Filter controls (analog biases + trail filter)
+- Image load/save with metadata
 
 **Key Features**:
-- **Dual Independent Viewers**: Each viewer can show camera feed or loaded images
-- **Windows File Browser**: Easy image selection with native file picker
-- **Noise Analysis**: SNR calculation, bright dot detection, signal/noise statistics
-- Binary image mode (configurable bit extraction with OR combination)
-- Three comparison modes (Overlay, Difference, Side-by-Side)
-- Real-time scattering detection with temporal tracking
-- Heatmap visualization of noise patterns
-- Comprehensive statistics and data export
-- User-friendly interface with tooltips and integrated help
+- **Binary image mode** - Configurable bit extraction (2 bits)
+- **Real-time event rate chart** - Monitor event rates with configurable display
+- **Noise analysis** - Detect signal dots and measure background noise
+- **Filter controls** - Adjust camera biases and trail filter in real-time
+- **Image management** - Load/save images with timestamps and metadata
+- **Streamlined UI** - All controls in one viewer panel
 
 ## System Requirements
 
@@ -68,17 +52,24 @@ All settings are in `event_config.ini` (restart application after changes):
 
 ```ini
 [Camera]
-# Binary image bit positions (key feature)
-binary_bit_1 = 0                  # First bit (0-7) - Default: bit 0
-binary_bit_2 = 7                  # Second bit (0-7) - Default: bit 7
+# Binary image bit positions
+binary_bit_1 = 5                  # First bit (0-7) - Default: bit 5
+binary_bit_2 = 6                  # Second bit (0-7) - Default: bit 6
 
 # Frame rate
 accumulation_time_us = 10000      # 10ms = ~100 FPS
 
-# Camera biases
-bias_diff_on = 20                 # ON event threshold
-bias_diff_off = 20                # OFF event threshold
-bias_hpf = 100                    # High-pass filter
+# Analog biases
+bias_diff = 0                     # Event detection threshold
+bias_diff_on = 0                  # ON event threshold
+bias_diff_off = 0                 # OFF event threshold
+bias_hpf = 0                      # High-pass filter
+bias_refr = 0                     # Refractory period
+
+# Trail Filter
+trail_filter_enabled = true       # Enable/disable trail filter
+trail_filter_type = 2             # 0=TRAIL, 1=STC_CUT_TRAIL, 2=STC_KEEP_TRAIL
+trail_filter_threshold = 1000     # Threshold in microseconds
 
 # Storage
 capture_directory = C:\Users\wolfw\OneDrive\Desktop\ReliabilityTesting
@@ -88,156 +79,132 @@ See `event_config.ini` for complete settings with detailed explanations.
 
 ## Features & Usage
 
-### 1. Image Capture & Management
+### 1. Camera Viewer
 
-**Independent Viewer Controls**:
-- Each viewer (Left and Right) operates independently
-- Dropdown menu in each viewer: Active Camera / Load Image... / Save Image...
-- Can display different images in each viewer simultaneously
-- Switch between live camera and loaded images instantly
+The main Camera View window contains all controls:
 
-**Save Image**:
-- Select "Save Image..." from viewer dropdown
-- Captures currently displayed image (camera or loaded)
-- Add optional comment/notes
-- Stores metadata (camera settings, user comments)
-- Format: `YYYY-MM-DDTHH-MM-SS_viewer_[Left/Right]Viewer.png` + `.json`
+**Mode Selector** (dropdown):
+- **Active Camera**: View live camera feed
+- **Load Image...**: Load a previously saved image
+- **Save Image...**: Save current frame with metadata
 
-**Load Image**:
-- Select "Load Image..." from viewer dropdown
-- Click "Browse..." for Windows file picker (easy navigation)
-- Or type full path manually
-- Supports grayscale PNG images (automatically converted for display)
-- Automatically loads metadata if available
-- Buttons: "Switch to Camera" and "Clear Loaded Image" when image is loaded
+**Image Display**:
+- Shows binary processed camera feed or loaded image
+- Automatically scales to fit window
+- Maintains aspect ratio
 
-### 2. Image Comparison
+### 2. Event Rate Chart (New!)
 
-Compare live camera feed with loaded reference image.
+Real-time visualization of camera event rates displayed between the camera view and Image Analysis section.
 
-**Overlay Mode** (default):
-- 🟡 Yellow = Pixels in both images (agreement)
-- 🟢 Green = Pixels only in live (new activity)
-- 🔴 Red = Pixels only in loaded (missing activity)
+**Chart Features**:
+- **Rolling Time Window**: Shows event history over configurable time period
+- **Auto-scaling Y-axis**: Automatically adjusts to data range
+- **Color Coding**: Green line plot for easy visibility
+- **Real-time Updates**: Updates at 10Hz for smooth visualization
+- **Information Overlay**: Shows current rate, time range, and scale
 
-**Difference Mode**:
-- White = Different pixels
-- Black = Identical pixels
-
-**Side-by-Side Mode**:
-- Left: Live camera (updating)
-- Right: Loaded reference (static)
-
-**Statistics Provided**:
-- Pixels in both images
-- Pixels in live only
-- Pixels in loaded only
-- Difference count and percentage
+**Default Display**:
+- 60-second time window
+- Auto-scaling enabled with 1 kev/s minimum
+- Updates continuously when camera is active
 
 ### 3. Noise Analysis
 
-Quantitative noise characterization for binary images with bright dot detection and signal-to-noise ratio (SNR) calculation.
+Analyzes images to detect circular dots (signal) and measure background noise.
 
-**How It Works**:
-- Analyzes either live camera feed (Bit 0 OR Bit 7) or loaded images
-- Detects bright dots using threshold-based segmentation
-- Separates signal (dots) from noise (background)
-- Calculates SNR in decibels (dB)
-- Provides comprehensive statistics on both signal and noise regions
+**Detection Parameters**:
+- **Threshold**: Binary threshold for detecting bright dots (0-255)
+- **Min/Max Dot Area**: Size range in pixels
+- **Circularity**: Shape filter (0-1, where 1 = perfect circle)
 
 **Running Analysis**:
-1. Open "Noise Analysis" section in any viewer
-2. Adjust detection parameters if needed:
-   - **Threshold**: Binary threshold for detecting bright dots (0-255)
-   - **Min/Max Dot Area**: Size range in pixels to filter detected dots
-   - **Circularity**: Shape filter (0-1, where 1 is perfect circle)
+1. Ensure image is loaded (camera or file)
+2. Adjust detection parameters if needed
 3. Click "Run Noise Analysis"
-4. View results organized by category
 
 **Results Provided**:
+- **Signal Statistics**: Mean, std dev, range, pixel count
+- **Noise Statistics**: Mean, std dev, range, pixel count
+- **Quality Metrics**:
+  - SNR (dB) - Signal-to-Noise Ratio
+  - Contrast Ratio
+  - Color-coded: Green (excellent), Yellow (good), Red (poor)
 
-**Detected Dots**:
-- Count of dots found matching your criteria
-- Based on threshold, size, and circularity constraints
-
-**Signal Statistics** (dots):
-- Mean, standard deviation, range, pixel count
-- Represents the bright dots you're trying to detect
-
-**Noise Statistics** (background):
-- Mean, standard deviation, range, pixel count
-- Represents everything that's not a dot
-
-**Quality Metrics**:
-- **SNR (dB)**: Signal-to-noise ratio
-  - 🟢 > 40 dB = Excellent
-  - 🟡 20-40 dB = Good
-  - 🔴 < 20 dB = Poor
-- **Contrast Ratio**: Signal mean / noise standard deviation
-
-**Visualization Options**:
-- **Detected Circles**: Shows detected dots with green circles
-- **Signal Only**: Displays only the dot regions
-- **Noise Only**: Displays only the background regions
-- Click "Show Visualization" to generate preview
+**Visualization**:
+- Detected Circles: Shows detected signal dots
+- Signal Only: Shows signal mask
+- Noise Only: Shows noise mask
 
 **Export Results**:
 - Click "Export Results" to save analysis to timestamped text file
 - Format: `noise_analysis_YYYYMMDD_HHMMSS.txt`
-- Contains all statistics and parameters used
 
-**Image Source Indicator**:
-- Camera feed: "Analyzing: Camera feed (Bit 0 OR Bit 7)"
-- Loaded image: "Analyzing: Loaded image file"
+### 4. Filters & Settings (Real-Time Control)
 
-**Typical Use Cases**:
-- Characterize dot pattern quality in test images
-- Compare signal quality between different camera configurations
-- Validate that dots are well-separated from background noise
-- Measure image quality for different lighting or lens conditions
+Control camera hardware settings without restarting:
 
-### 4. Scattering Analysis
+**Analog Bias Filters**:
+- **ON Event Threshold** (`bias_diff_on`): Controls brightness increase sensitivity
+  - Lower = more ON events, Higher = fewer ON events
+  - Range: -85 to 140
+- **OFF Event Threshold** (`bias_diff_off`): Controls brightness decrease sensitivity
+  - Lower = more OFF events, Higher = fewer OFF events
+  - Range: -35 to 190
+- **High-Pass Filter** (`bias_hpf`): Removes DC component from signal
+  - Higher = stronger filtering, reduces background noise
+  - Range: 0 to 120
+- **Refractory Period** (`bias_refr`): Prevents rapid re-triggering
+  - Higher = longer dead time, reduces noise but may miss rapid changes
+  - Range: -20 to 235
 
-Detects **scattering pixels** - noise pixels that appear in live camera but NOT in reference image.
+**Trail Filter**:
+- **Enable/Disable**: Toggle trail filtering
+- **Filter Type**:
+  - TRAIL: Basic filtering
+  - STC_CUT_TRAIL: Cut trailing events
+  - STC_KEEP_TRAIL: Keep stable events (recommended)
+- **Threshold (μs)**: Events older than this are filtered
+  - Range: 1,000 to 100,000 microseconds
 
-**Starting Analysis**:
-1. Load reference/baseline image
-2. Click "Start Scattering Analysis"
-3. Analysis runs continuously on each frame
+**Chart Settings** (New!):
+Configure the event rate chart display:
 
-**Visualization Modes**:
+- **Time Window**: Adjust history from 10 to 600 seconds
+  - Default: 60 seconds
+  - Longer windows show trends over time
+- **Autoscale**: Enable/disable automatic Y-axis scaling
+  - Default: Enabled
+  - When enabled: Chart adjusts to fit data with 20% headroom
+  - When disabled: Uses fixed maximum scale
+- **Minimum Scale**: Set minimum events/second (0.1-9999 kev/s)
+  - Default: 1 kev/s
+  - Lower values zoom in on low event rates
+- **Maximum Scale**: Set maximum events/second (1-10000 kev/s)
+  - Default: 1000 kev/s
+  - Used as fixed scale when autoscale is disabled
+- **Reset to Defaults**: Restore all chart settings
 
-**Highlight Mode**:
-- Scattering pixels shown in magenta
-- Real-time noise detection
-- Instant visual feedback
+**Applying Changes**:
+- Adjust sliders/settings
+- Click "Apply Bias Changes" or "Apply Trail Filter" button
+- Changes take effect immediately on camera hardware
+- Chart settings update instantly - no apply button needed
+- No restart required!
 
-**Heatmap Mode**:
-- Blue = Low scattering frequency
-- Red = High scattering frequency
-- Shows cumulative noise patterns
+### 5. Image Management
 
-**Statistics Tracked**:
-- Current frame: Scattering pixels and percentage
-- Temporal: Frames analyzed, total events, average per frame
-- Hot spots: Most frequently scattering pixels
+**Save Image**:
+- Captures current camera frame with timestamp
+- Stores metadata (camera settings, user comments)
+- Format: `YYYY-MM-DDTHH-MM-SS_reliability_test.png` + `.json`
+- Saved to directory configured in `event_config.ini`
 
-**Reset Temporal Data**:
-- Clears accumulated counts
-- Keeps reference image
-- Start fresh tracking session
-
-### 5. Data Export
-
-**Export Statistics (CSV)**:
-- Scattering metrics and temporal tracking
-- Optional custom filename
-- Auto-timestamped: `scattering_stats_YYYY-MM-DDTHH-MM-SS.csv`
-
-**Export Heatmap (PNG)**:
-- Frequency visualization image
-- Full resolution
-- Auto-timestamped: `YYYY-MM-DDTHH-MM-SS_scattering_heatmap.png`
+**Load Image**:
+- Opens Windows file browser
+- Supports PNG files
+- Automatically loads metadata if available
+- Use for offline analysis
 
 ## Keyboard Shortcuts
 
@@ -248,42 +215,59 @@ Detects **scattering pixels** - noise pixels that appear in live camera but NOT 
 
 ## Common Use Cases
 
-### Sensor Reliability Testing
-
-Monitor camera noise over extended period:
-1. Capture clean baseline (no activity/noise)
-2. Load baseline as reference
-3. Start scattering analysis
-4. Run for hours/days
-5. Monitor scattering percentage (should stay low)
-6. Export statistics for reporting
-
 ### Noise Characterization
 
-Quantify sensor noise:
-1. Dark frame as reference (lens cap on)
-2. Run camera in same conditions
-3. Scattering pixels = thermal/dark current noise
-4. Heatmap shows noise distribution
-5. Hot spots indicate pixel defects
+Quantify sensor noise with varying filter settings:
+1. Capture dark frame (lens cap on)
+2. Load the dark frame
+3. Run noise analysis
+4. Adjust filter settings in Filters panel
+5. Click "Apply" to test new settings
+6. Compare SNR values
+7. Export results for documentation
 
-### Environmental Impact Testing
+### Filter Optimization
 
-Test temperature/humidity effects:
-1. Baseline at room temperature
-2. Start scattering analysis
-3. Change environmental conditions
-4. Watch scattering metrics change
-5. Reset temporal data between tests
-6. Compare results across conditions
+Find optimal bias settings for your environment:
+1. View live camera feed
+2. Open Filters section
+3. Monitor event rate chart while adjusting
+4. Adjust bias sliders while watching live view
+5. Click "Apply Bias Changes" to test
+6. Watch event rate chart for immediate feedback
+7. Run noise analysis to measure impact
+8. Iterate until SNR is maximized
+9. Update `event_config.ini` with final values
 
-### Long-Term Drift Detection
+### Focus Adjustment with Event Rate Monitoring
 
-Monitor sensor aging:
-1. Daily baseline comparison
-2. Track scattering percentage over weeks/months
-3. Increasing trend = degradation
-4. Hot spots = failing pixels
+Use the event rate chart for real-time focus tuning:
+1. Open Camera Settings → Chart Settings
+2. Set time window to 30 seconds for quick response
+3. Disable autoscale and set max to expected rate
+4. Adjust camera focus while monitoring chart
+5. Optimal focus shows stable, high event rate
+6. Poor focus shows low or erratic event rates
+
+### Long-Term Reliability Testing
+
+Monitor camera performance over time:
+1. Capture baseline image with optimal settings
+2. Save baseline for future comparison
+3. Periodically capture new images
+4. Load and analyze each image
+5. Compare SNR trends over time
+6. Export all results for reporting
+
+### Signal Detection Tuning
+
+Optimize detection parameters for your test pattern:
+1. Load test image with known signal dots
+2. Adjust detection parameters
+3. Run noise analysis
+4. Check visualization to verify detection
+5. Refine parameters until accurate
+6. Use same parameters for all test images
 
 ## Troubleshooting
 
@@ -297,73 +281,57 @@ Monitor sensor aging:
 - Restart application
 - Check Metavision SDK installation
 
-### Buttons Grayed Out
+### Filters Grayed Out
 
-**Symptoms**: Cannot click certain buttons
-
-**Solutions**:
-- Hover over button for tooltip (explains why disabled)
-- Common reasons:
-  - "Save Image" requires camera feed
-  - "Compare Images" requires loaded image
-  - "Start Scattering" requires reference image
-
-### High Scattering Percentage
-
-**Symptoms**: Scattering > 5%
-
-**Possible Causes**:
-- Scene changed between baseline and live
-- Temperature drift
-- Camera noise increased
-- Wrong reference image loaded
+**Symptoms**: Filter controls disabled
 
 **Solutions**:
-- Verify reference image is appropriate
-- Check environmental conditions
-- Recapture baseline
-- Adjust camera biases in INI file
+- Filters require camera to be connected
+- Check camera status in Status panel
+- Reconnect camera if needed
 
-### Flicker Under LED Lights
+### High Noise in Images
 
-**Symptoms**: 50/60 Hz flickering visible
+**Symptoms**: Low SNR, high noise statistics
 
-**Solution**: Enable anti-flicker in `event_config.ini`:
-```ini
-antiflicker_enabled = 1
-antiflicker_freq_hz = 60    # 50 for EU, 60 for US
-```
+**Solutions**:
+- Adjust High-Pass Filter (bias_hpf) upward
+- Enable Trail Filter
+- Increase Refractory Period (bias_refr)
+- Check for environmental noise sources
+- Use longer accumulation time
+
+### No Signal Dots Detected
+
+**Symptoms**: Zero dots detected in noise analysis
+
+**Solutions**:
+- Lower threshold value
+- Decrease minimum area
+- Reduce circularity threshold
+- Check that image contains signal
+- Verify binary bits extract correct data
 
 ## Understanding Statistics
 
-### Comparison Statistics
+### Noise Analysis Metrics
 
-- **In Both**: Pixels active in both images (reliable/stable)
-- **Live Only**: New activity (could be noise or real changes)
-- **Loaded Only**: Missing activity (degradation or scene change)
-- **Difference %**: Overall change metric (lower = more similar)
+- **Detected Dots**: Number of circular signal regions found
+- **Signal Mean/Std Dev**: Brightness statistics within detected dots
+- **Noise Mean/Std Dev**: Brightness statistics in background
+- **SNR (dB)**: Signal-to-Noise Ratio
+  - > 40 dB = Excellent
+  - 20-40 dB = Good
+  - < 20 dB = Poor
+- **Contrast Ratio**: Signal brightness / noise brightness
 
-### Scattering Statistics
+### Filter Effects
 
-- **Current Scattering Pixels**: Noise in current frame
-- **Scattering %**: Noise severity (< 0.5% = good, > 2% = bad)
-- **Total Scattering Events**: Cumulative noise across all frames
-- **Average Per Frame**: Temporal stability (low = stable)
-- **Hot Spot**: Most problematic pixel location and frequency
-
-## File Formats
-
-### Saved Images
-
-- **PNG**: `2025-11-11T14-30-45_reliability_test.png`
-- **JSON**: `2025-11-11T14-30-45_reliability_test.json` (metadata)
-
-### Exported Data
-
-- **CSV**: `scattering_stats_2025-11-11T14-30-45.csv`
-- **Heatmap PNG**: `2025-11-11T14-30-45_scattering_heatmap.png`
-
-All files saved to `capture_directory` from INI file.
+- **Higher bias_diff_on/off**: Fewer events, less noise, may miss weak signals
+- **Lower bias_diff_on/off**: More events, captures weaker signals, more noise
+- **Higher bias_hpf**: Removes slow temporal changes, reduces background
+- **Higher bias_refr**: Reduces pixel re-triggering, less noise but slower response
+- **Trail Filter**: Removes transient events and flickering
 
 ## Binary Image Mode
 
@@ -375,7 +343,7 @@ Extracts specific bits from 8-bit camera image for reliability testing.
 - `binary_bit_2 = 6` → Extracts bit 6 (value 64)
 
 **Result**:
-- Pixels with values 32, 64, or 96 appear white
+- Pixels with bit 5 OR bit 6 set appear white
 - All other pixels appear black
 - Creates binary representation for noise analysis
 
@@ -383,41 +351,38 @@ Extracts specific bits from 8-bit camera image for reliability testing.
 - Bit 0 = 1, Bit 1 = 2, Bit 2 = 4, Bit 3 = 8
 - Bit 4 = 16, Bit 5 = 32, Bit 6 = 64, Bit 7 = 128
 
-## Tips for Non-Expert Users
+## Tips for Users
 
 1. **Start with Help**: Press F1 to see complete usage guide
-2. **Use Tooltips**: Hover over any button for explanation
-3. **Follow Workflow**: Save → Load → Compare or Analyze
-4. **Monitor Statistics**: Check scattering % regularly
-5. **Export Data**: Save CSV for later analysis
-6. **Read INI Comments**: `event_config.ini` has detailed explanations
+2. **Use Tooltips**: Hover over controls for explanations
+3. **Test Filter Changes**: Use "Apply" buttons to test settings live
+4. **Monitor SNR**: Higher SNR = better signal quality
+5. **Export Results**: Save analysis to text files for documentation
+6. **Adjust Detection**: Tune parameters to match your test pattern
 7. **Use Defaults**: Default settings work for most cases
 
-## Advanced Configuration
+## File Formats
 
-### Low Noise Testing
-```ini
-accumulation_time_us = 33000
-bias_hpf = 120
-trail_filter_enabled = 1
-```
+### Saved Images
 
-### High Temporal Resolution
-```ini
-accumulation_time_us = 5000
-bias_diff_on = 15
-bias_diff_off = 15
-```
+- **PNG**: `2025-11-11T14-30-45_reliability_test.png`
+- **JSON**: `2025-11-11T14-30-45_reliability_test.json` (metadata)
 
-### Stable Long-Term Monitoring
-```ini
-accumulation_time_us = 20000
-bias_hpf = 100
-erc_enabled = 1
-```
+### Exported Data
+
+- **Noise Analysis**: `noise_analysis_YYYYMMDD_HHMMSS.txt`
+
+All files saved to `capture_directory` from INI file.
 
 ## Technical Architecture
 
+**Simplified Single-Camera Design**:
+- Streamlined codebase (~7,500 lines vs. 15,000 originally)
+- Single integrated viewer panel
+- Real-time filter control
+- Efficient binary image processing
+
+**Technology Stack**:
 - **Language**: C++17
 - **Build System**: CMake 3.26+
 - **Graphics**: OpenGL 3.0, GLFW, GLEW, ImGui
@@ -429,16 +394,29 @@ erc_enabled = 1
 
 ```
 ReliabilityTesting/
-├── start.bat                        # Launch script (runs from root)
+├── start.bat                        # Launch script for development
 ├── event_config.ini                 # Configuration file
 ├── README.md                        # This file
-├── PROJECT.md                       # Original specification
-├── DEVELOPMENT_HISTORY.md           # Implementation details
 ├── CMakeLists.txt                   # Build configuration
+├── .gitignore                       # Git ignore file (includes Deployment/)
 ├── include/                         # Header files
+│   ├── core/                        # Application state
+│   ├── video/                       # Frame/texture management
+│   └── ui/                          # User interface
+│       ├── viewer_panel.h           # Main viewer panel
+│       ├── event_rate_chart.h       # Event rate chart (NEW)
+│       └── image_dialog.h           # Image dialogs
 ├── src/                             # Source files
+│   ├── main.cpp                     # Application entry
+│   ├── core/                        # Core modules
+│   ├── video/                       # Video processing
+│   └── ui/                          # UI implementation
+│       ├── viewer_panel.cpp         # Viewer implementation
+│       ├── event_rate_chart.cpp     # Chart implementation (NEW)
+│       └── image_dialog.cpp         # Dialog implementation
 ├── build/                           # Build output
 │   └── bin/Release/                 # Executable location
+├── Deployment/                      # Deployment package (git-ignored)
 └── deps/                            # Dependencies
 ```
 
@@ -459,37 +437,35 @@ Or use Visual Studio 2022 to open CMakeLists.txt.
 
 ## Version History
 
-- **v1.1** (2025-01-11) - Dual Independent Viewers
-  - Independent viewer controls for left and right panels
-  - Windows file browser integration
-  - Each viewer can load/save/display independently
-  - Grayscale image format conversion
-  - Simplified launcher (start.bat)
-  - Enhanced error handling and debugging
+- **v2.1** - Event Rate Monitoring (Current)
+  - Added real-time event rate chart with 60-second history
+  - Configurable chart settings (time window, scaling, min/max)
+  - Auto-scaling with manual override option
+  - Chart displays between camera view and analysis section
+  - Deployment folder separated from development builds
 
-- **v1.0** - Complete implementation (Phases 1-6)
-  - Single camera support
-  - Binary image processing
-  - Image persistence with metadata
-  - Three comparison modes
-  - Scattering analysis with heatmaps
-  - Data export (CSV, PNG)
-  - User-friendly UI with help system
+- **v2.0** - Streamlined architecture
+  - Single camera viewer with integrated controls
+  - Real-time filter adjustment
+  - Noise analysis built-in
+  - 50% code reduction
+  - Simplified, maintainable design
+
+- **v1.0** - Initial implementation
+  - Dual viewer support
+  - Image comparison modes
+  - Scattering analysis
+  - Full feature set
 
 ## Support & Documentation
 
 - **Help Window**: Press F1 in application
 - **Configuration Guide**: See comments in `event_config.ini`
-- **Project Specification**: `PROJECT.md`
-- **Development Details**: `DEVELOPMENT_HISTORY.md`
+- **Tooltips**: Hover over any control for context help
 
 ## License
 
 Internal use for reliability testing of CenturyArks SilkyEvCam HD event cameras.
-
-## Contact
-
-For issues or questions, see application help (F1) or documentation files.
 
 ---
 
@@ -497,13 +473,12 @@ For issues or questions, see application help (F1) or documentation files.
 
 | Action | How To |
 |--------|--------|
-| Start App | Double-click `start.bat` |
+| Start App | Double-click `start_reliability_camera.bat` |
 | Get Help | Press **F1** |
-| Load Image | Viewer dropdown → "Load Image..." → Browse/type path → Load |
-| Save Image | Viewer dropdown → "Save Image..." → Add comment → Save |
-| Switch Viewer | Dropdown: "Active Camera" or use "Switch to Camera" button |
-| Compare | Load images in both viewers or use "Compare Images" button |
-| Scattering | Load reference → "Start Scattering Analysis" |
-| Export Stats | "Export Statistics (CSV)" |
-| Export Heatmap | "Export Heatmap (PNG)" |
+| View Live | Select "Active Camera" in dropdown |
+| Save Image | Select "Save Image..." in dropdown |
+| Load Image | Select "Load Image..." in dropdown |
+| Run Analysis | Open "Noise Analysis" → Adjust params → "Run Noise Analysis" |
+| Adjust Filters | Open "Filters" → Adjust sliders → Click "Apply" |
+| Export Results | In "Noise Analysis" → "Export Results" |
 | Close App | Press **ESC** |

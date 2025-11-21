@@ -71,37 +71,17 @@ add_executable(reliability_testing_camera
     src/image_manager.cpp
     src/scattering_analyzer.cpp
     src/noise_analyzer.cpp
-    # Core module (application state)
-    src/core/frame_sync.cpp
-    src/core/event_metrics.cpp
+    # Core module (minimal - single camera)
     src/core/display_settings.cpp
     src/core/camera_state.cpp
     src/core/app_state.cpp
-    # Video processing module
+    # Video processing module (minimal)
     src/video/frame_buffer.cpp
-    src/video/frame_processor.cpp
     src/video/texture_manager.cpp
-    src/video/triple_buffer_renderer.cpp
-    src/video/simd_utils.cpp
-    src/video/gpu_compute.cpp
-    src/video/filters/roi_filter.cpp
-    src/video/filters/subtraction_filter.cpp
-    # Camera module (hardware features)
-    src/camera/feature_manager.cpp
-    src/camera/bias_manager.cpp
-    src/camera/camera_controller.cpp
-    src/camera/event_processor.cpp
-    src/camera/features/monitoring_feature.cpp
-    src/camera/features/erc_feature.cpp
-    src/camera/features/antiflicker_feature.cpp
-    src/camera/features/trail_filter_feature.cpp
-    src/camera/features/roi_feature.cpp
-    # UI module (panels)
-    src/ui/settings_panel.cpp
-    src/ui/features_panel.cpp
-    src/ui/camera_feed_panel.cpp
+    # UI module
     src/ui/image_dialog.cpp
     src/ui/viewer_panel.cpp
+    src/ui/event_rate_chart.cpp
     ${IMGUI_SOURCES}
 )
 
@@ -110,11 +90,10 @@ target_include_directories(reliability_testing_camera PRIVATE
     "${GLFW_DIR}/include"
 )
 
-# Build Metavision SDK library list
+# Build Metavision SDK library list (only libraries actually used)
 set(METAVISION_LIBS
     metavision_sdk_base
     metavision_sdk_core
-    metavision_sdk_ui
     metavision_hal
     metavision_hal_discovery
 )
@@ -125,14 +104,13 @@ else()
     list(APPEND METAVISION_LIBS metavision_sdk_stream)
 endif()
 
-# Build OpenCV library list
+# Build OpenCV library list (only libraries actually used)
 if(USE_OPENCV_WORLD)
     set(OPENCV_LIBS opencv_world480)
 else()
     set(OPENCV_LIBS
         opencv_core4
         opencv_imgproc4
-        opencv_highgui4
         opencv_imgcodecs4
     )
 endif()

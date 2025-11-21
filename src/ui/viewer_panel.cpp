@@ -6,12 +6,20 @@
 #include "ui/viewer_panel.h"
 #include "app_config.h"
 #include "imgui.h"
+#include "core/app_state.h"
+#include "camera_manager.h"
+#include <metavision/hal/facilities/i_ll_biases.h>
+#include <metavision/hal/facilities/i_event_trail_filter_module.h>
+#include <metavision/hal/facilities/i_erc_module.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <filesystem>
 #include <opencv2/imgproc.hpp>
+
+// External global state (defined in main.cpp)
+extern std::unique_ptr<core::AppState> app_state;
 
 namespace ui {
 
@@ -26,9 +34,45 @@ ViewerPanel::ViewerPanel(const std::string& name)
     noise_params_.min_area = 50;
     noise_params_.max_area = 2000;
     noise_params_.circularity_threshold = 0.7f;
+
+    // Initialize event counting
+    last_event_count_time_ = std::chrono::steady_clock::now();
+
+    // Initialize event rate chart
+    event_chart_ = std::make_unique<EventRateChart>();
 }
 
 ViewerPanel::~ViewerPanel() = default;
+
+// ============================================================================
+// Event Counting for Focus Adjust
+// ============================================================================
+
+void ViewerPanel::update_event_count(uint64_t event_count) {
+    total_event_count_ += event_count;
+
+    // Update the chart with cumulative count
+    if (event_chart_) {
+        event_chart_->update(total_event_count_);
+    }
+
+    // Calculate events per second every time this is called
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_event_count_time_).count();
+
+    // Update rate calculation every 100ms minimum
+    if (elapsed >= 100) {
+        uint64_t events_since_last = total_event_count_ - last_event_count_;
+        float seconds_elapsed = elapsed / 1000.0f;
+
+        if (seconds_elapsed > 0) {
+            events_per_second_ = events_since_last / seconds_elapsed;
+        }
+
+        last_event_count_ = total_event_count_;
+        last_event_count_time_ = now;
+    }
+}
 
 // ============================================================================
 // Main Render
@@ -54,13 +98,30 @@ void ViewerPanel::render(const cv::Mat& camera_frame, GLuint camera_texture_id,
     // Display image
     render_image(camera_frame, camera_texture_id, camera_width, camera_height);
 
+    // Event rate chart (only show for camera mode)
+    if (mode_ == ViewerMode::ACTIVE_CAMERA && event_chart_) {
+        ImGui::Separator();
+        ImGui::Text("Event Rate Monitor");
+
+        // Get available width for the chart
+        float available_width = ImGui::GetContentRegionAvail().x;
+        event_chart_->render(available_width, 100.0f);
+    }
+
     // Noise analysis section
     ImGui::Separator();
     render_noise_analysis(camera_frame);
 
+    // Filters section
+    ImGui::Separator();
+    render_filters();
+
     // Handle dialogs
     handle_load_dialog();
     handle_save_dialog(camera_frame);
+
+    // Render focus adjust window if open
+    render_focus_adjust_window();
 }
 
 // ============================================================================
@@ -167,7 +228,7 @@ void ViewerPanel::render_image(const cv::Mat& camera_frame, GLuint camera_tex_id
 // ============================================================================
 
 void ViewerPanel::render_noise_analysis(const cv::Mat& camera_frame) {
-    if (ImGui::CollapsingHeader("Noise Analysis", ImGuiTreeNodeFlags_None)) {
+    if (ImGui::CollapsingHeader("Image Analysis", ImGuiTreeNodeFlags_None)) {
         // Get the current image to analyze
         cv::Mat current_image;
         std::string image_source;
@@ -224,6 +285,23 @@ void ViewerPanel::render_noise_analysis(const cv::Mat& camera_frame) {
         if (!has_image) {
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.0f, 1.0f), "(No image)");
+        }
+
+        // Run Focus Adjust button
+        ImGui::Spacing();
+        auto& cam_mgr = CameraManager::instance();
+        bool camera_connected = cam_mgr.is_camera_connected(0);
+
+        ImGui::BeginDisabled(!camera_connected);
+        if (ImGui::Button("Run Focus Adjust", ImVec2(200, 30))) {
+            show_focus_adjust_window_ = true;
+            std::cout << "Focus adjust window opened for " << name_ << std::endl;
+        }
+        ImGui::EndDisabled();
+
+        if (!camera_connected) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.0f, 1.0f), "(Camera required)");
         }
 
         // Display results if analysis is complete
@@ -339,6 +417,213 @@ void ViewerPanel::render_noise_analysis(const cv::Mat& camera_frame) {
 }
 
 // ============================================================================
+// Filters Section
+// ============================================================================
+
+void ViewerPanel::render_filters() {
+    if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_None)) {
+        auto& cam_mgr = CameraManager::instance();
+        bool camera_connected = cam_mgr.is_camera_connected(0);
+        auto& config = AppConfig::instance();
+
+        if (!camera_connected) {
+            ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "Camera not connected");
+            ImGui::Text("Connect camera to adjust filters");
+            return;
+        }
+
+        // Analog Bias Filters
+        if (ImGui::TreeNode("Analog Bias Filters")) {
+            ImGui::TextWrapped("Adjust analog bias settings to control event detection sensitivity and filtering.");
+            ImGui::Spacing();
+
+            // bias_diff_on
+            int bias_diff_on = config.camera_settings().bias_diff_on;
+            if (ImGui::SliderInt("ON Event Threshold", &bias_diff_on, -85, 140)) {
+                config.camera_settings().bias_diff_on = bias_diff_on;
+            }
+            ImGui::SetItemTooltip("Controls when brightness increase triggers an event\nLower = more ON events, Higher = fewer ON events");
+
+            // bias_diff_off
+            int bias_diff_off = config.camera_settings().bias_diff_off;
+            if (ImGui::SliderInt("OFF Event Threshold", &bias_diff_off, -35, 190)) {
+                config.camera_settings().bias_diff_off = bias_diff_off;
+            }
+            ImGui::SetItemTooltip("Controls when brightness decrease triggers an event\nLower = more OFF events, Higher = fewer OFF events");
+
+            // bias_hpf
+            int bias_hpf = config.camera_settings().bias_hpf;
+            if (ImGui::SliderInt("High-Pass Filter", &bias_hpf, 0, 120)) {
+                config.camera_settings().bias_hpf = bias_hpf;
+            }
+            ImGui::SetItemTooltip("Removes DC component from signal\nHigher = stronger filtering, reduces background noise");
+
+            // bias_refr
+            int bias_refr = config.camera_settings().bias_refr;
+            if (ImGui::SliderInt("Refractory Period", &bias_refr, -20, 235)) {
+                config.camera_settings().bias_refr = bias_refr;
+            }
+            ImGui::SetItemTooltip("Prevents rapid re-triggering of same pixel\nHigher = longer dead time, reduces noise but may miss rapid changes");
+
+            ImGui::Spacing();
+            if (ImGui::Button("Apply Bias Changes", ImVec2(200, 30))) {
+                // Apply biases to camera
+                try {
+                    auto& camera = cam_mgr.get_camera(0).camera;
+                    if (camera) {
+                        auto* ll_biases = camera->get_device().get_facility<Metavision::I_LL_Biases>();
+                        if (ll_biases) {
+                            ll_biases->set("bias_diff_on", config.camera_settings().bias_diff_on);
+                            ll_biases->set("bias_diff_off", config.camera_settings().bias_diff_off);
+                            ll_biases->set("bias_hpf", config.camera_settings().bias_hpf);
+                            ll_biases->set("bias_refr", config.camera_settings().bias_refr);
+                            std::cout << "Applied bias settings to camera" << std::endl;
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Error applying biases: " << e.what() << std::endl;
+                }
+            }
+            ImGui::SetItemTooltip("Apply current bias settings to the camera hardware");
+
+            ImGui::TreePop();
+        }
+
+        // Trail Filter
+        if (ImGui::TreeNode("Trail Filter")) {
+            ImGui::TextWrapped("Filter noise from event bursts and rapid flickering.");
+            ImGui::Spacing();
+
+            bool trail_enabled = config.camera_settings().trail_filter_enabled;
+            if (ImGui::Checkbox("Enable Trail Filter", &trail_enabled)) {
+                config.camera_settings().trail_filter_enabled = trail_enabled;
+            }
+
+            int trail_type = config.camera_settings().trail_filter_type;
+            const char* trail_type_items[] = { "TRAIL", "STC_CUT_TRAIL", "STC_KEEP_TRAIL" };
+            if (ImGui::Combo("Filter Type", &trail_type, trail_type_items, 3)) {
+                config.camera_settings().trail_filter_type = trail_type;
+            }
+            ImGui::SetItemTooltip("TRAIL: Basic filtering\nSTC_CUT_TRAIL: Cut trailing events\nSTC_KEEP_TRAIL: Keep stable events (recommended)");
+
+            int trail_threshold = config.camera_settings().trail_filter_threshold;
+            if (ImGui::SliderInt("Threshold (us)", &trail_threshold, 1000, 100000)) {
+                config.camera_settings().trail_filter_threshold = trail_threshold;
+            }
+            ImGui::SetItemTooltip("Events older than this threshold are filtered (in microseconds)");
+
+            ImGui::Spacing();
+            if (ImGui::Button("Apply Trail Filter", ImVec2(200, 30))) {
+                // Apply trail filter to camera
+                try {
+                    auto& camera = cam_mgr.get_camera(0).camera;
+                    if (camera) {
+                        auto* trail_filter = camera->get_device().get_facility<Metavision::I_EventTrailFilterModule>();
+                        if (trail_filter) {
+                            trail_filter->enable(config.camera_settings().trail_filter_enabled);
+                            if (config.camera_settings().trail_filter_enabled) {
+                                using FilterType = Metavision::I_EventTrailFilterModule::Type;
+                                FilterType type = static_cast<FilterType>(config.camera_settings().trail_filter_type);
+                                trail_filter->set_type(type);
+                                trail_filter->set_threshold(config.camera_settings().trail_filter_threshold);
+                            }
+                            std::cout << "Applied trail filter settings to camera" << std::endl;
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Error applying trail filter: " << e.what() << std::endl;
+                }
+            }
+            ImGui::SetItemTooltip("Apply current trail filter settings to the camera hardware");
+
+            ImGui::TreePop();
+        }
+
+        // Chart Settings
+        if (ImGui::TreeNode("Chart Settings")) {
+            ImGui::TextWrapped("Configure the event rate chart display settings.");
+            ImGui::Spacing();
+
+            // Only show if we have a chart
+            if (event_chart_) {
+                auto& settings = event_chart_->get_mutable_settings();
+
+                // Time window slider
+                ImGui::Text("Time Window:");
+                float time_window = settings.time_window;
+                if (ImGui::SliderFloat("##TimeWindow", &time_window, 10.0f, 600.0f, "%.0f seconds")) {
+                    settings.time_window = time_window;
+                }
+                ImGui::SetItemTooltip("How many seconds of history to display (10-600 seconds)");
+
+                ImGui::Spacing();
+
+                // Autoscale checkbox
+                bool autoscale = settings.autoscale;
+                if (ImGui::Checkbox("Enable Autoscale", &autoscale)) {
+                    settings.autoscale = autoscale;
+                }
+                ImGui::SetItemTooltip("Automatically adjust Y-axis scale based on data");
+
+                ImGui::Spacing();
+
+                // Min/Max rate inputs
+                ImGui::Text("Y-Axis Scale (events/second):");
+
+                // Convert to kev/s for display
+                float min_kev = settings.min_rate / 1000.0f;
+                float max_kev = settings.max_rate / 1000.0f;
+
+                ImGui::PushItemWidth(100);
+                ImGui::Text("Minimum:");
+                ImGui::SameLine();
+                if (ImGui::InputFloat("##MinRate", &min_kev, 1.0f, 10.0f, "%.1f kev/s")) {
+                    settings.min_rate = min_kev * 1000.0f;
+                    // Ensure min is less than max
+                    if (settings.min_rate >= settings.max_rate) {
+                        settings.min_rate = settings.max_rate - 1000.0f;
+                    }
+                    if (settings.min_rate < 100.0f) {
+                        settings.min_rate = 100.0f;  // Minimum 0.1 kev/s
+                    }
+                }
+                ImGui::SetItemTooltip("Minimum Y-axis scale (0.1-9999 kev/s)");
+
+                ImGui::Text("Maximum:");
+                ImGui::SameLine();
+                if (ImGui::InputFloat("##MaxRate", &max_kev, 10.0f, 100.0f, "%.1f kev/s")) {
+                    settings.max_rate = max_kev * 1000.0f;
+                    // Ensure max is greater than min
+                    if (settings.max_rate <= settings.min_rate) {
+                        settings.max_rate = settings.min_rate + 1000.0f;
+                    }
+                    if (settings.max_rate > 10000000.0f) {
+                        settings.max_rate = 10000000.0f;  // Maximum 10000 kev/s
+                    }
+                }
+                ImGui::SetItemTooltip("Maximum Y-axis scale when autoscale is off (1-10000 kev/s)");
+                ImGui::PopItemWidth();
+
+                ImGui::Spacing();
+
+                // Reset button
+                if (ImGui::Button("Reset to Defaults", ImVec2(150, 0))) {
+                    settings.time_window = 60.0f;
+                    settings.min_rate = 1000.0f;
+                    settings.max_rate = 1000000.0f;
+                    settings.autoscale = true;
+                }
+                ImGui::SetItemTooltip("Reset all chart settings to default values");
+            } else {
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Chart not available");
+            }
+
+            ImGui::TreePop();
+        }
+    }
+}
+
+// ============================================================================
 // Dialog Handlers
 // ============================================================================
 
@@ -400,6 +685,91 @@ void ViewerPanel::handle_save_dialog(const cv::Mat& camera_frame) {
         // Image was successfully saved this frame
         std::cout << "Image saved from " << name_ << ": " << saved_path << std::endl;
     }
+}
+
+// ============================================================================
+// Focus Adjust Window
+// ============================================================================
+
+void ViewerPanel::render_focus_adjust_window() {
+    if (!show_focus_adjust_window_) {
+        return;
+    }
+
+    // Create unique window ID for this viewer
+    std::string window_id = "Camera Status##" + name_;
+
+    ImGui::SetNextWindowPos(ImVec2(600, 300), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(350, 150), ImGuiCond_FirstUseEver);
+
+    if (ImGui::Begin(window_id.c_str(), &show_focus_adjust_window_)) {
+        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "Focus Adjust - Camera Status");
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Get camera status
+        auto& cam_mgr = CameraManager::instance();
+        if (cam_mgr.is_camera_connected(0)) {
+            // Get current event count from camera manager
+            uint64_t current_count = cam_mgr.get_event_count();
+
+            // Calculate rate based on count difference
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_event_count_time_).count();
+
+            // Update rate calculation every 100ms
+            if (elapsed >= 100) {
+                uint64_t events_since_last = current_count - last_event_count_;
+                float seconds_elapsed = elapsed / 1000.0f;
+
+                if (seconds_elapsed > 0) {
+                    events_per_second_ = events_since_last / seconds_elapsed;
+                }
+
+                last_event_count_ = current_count;
+                last_event_count_time_ = now;
+            }
+
+            // Display the event rate
+            ImGui::Text("Event Rate:");
+            ImGui::SameLine(150);
+            if (events_per_second_ >= 1000000.0f) {
+                // Display in M events/sec for very large numbers
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "%.2f M ev/s", events_per_second_ / 1000000.0f);
+            } else if (events_per_second_ >= 1000.0f) {
+                // Display in K events/sec for large numbers
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "%.1f K ev/s", events_per_second_ / 1000.0f);
+            } else if (events_per_second_ > 0.0f) {
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "%.0f ev/s", events_per_second_);
+            } else {
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Initializing...");
+            }
+
+            // Show total event count as well
+            ImGui::Spacing();
+            ImGui::Text("Total Events:");
+            ImGui::SameLine(150);
+            if (current_count >= 1000000) {
+                ImGui::Text("%.2f M", current_count / 1000000.0);
+            } else if (current_count >= 1000) {
+                ImGui::Text("%.1f K", current_count / 1000.0);
+            } else {
+                ImGui::Text("%llu", current_count);
+            }
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.0f, 1.0f), "Camera not connected");
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Close button
+        if (ImGui::Button("Close", ImVec2(120, 30))) {
+            show_focus_adjust_window_ = false;
+        }
+    }
+    ImGui::End();
 }
 
 } // namespace ui

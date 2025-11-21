@@ -189,6 +189,11 @@ bool CameraManager::start_single_camera(FrameCallback callback) {
         camera->cd().add_callback(
             [this](const Metavision::EventCD* begin, const Metavision::EventCD* end) {
                 if (begin == end) return;
+
+                // Count events for focus adjust monitoring
+                uint64_t event_batch_count = std::distance(begin, end);
+                event_count_.fetch_add(event_batch_count, std::memory_order_relaxed);
+
                 if (frame_generator_) {
                     frame_generator_->process_events(begin, end);
                 }

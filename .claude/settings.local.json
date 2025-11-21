@@ -1,19 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cmake --build:*)",
-      "Bash(del:*)",
-      "Bash(dir:*)",
-      "Bash(\"C:\\Users\\wolfw\\source\\repos\\ReliabilityTesting\\build\\bin\\Release\\reliability_testing_camera.exe\")",
-      "Bash(timeout:*)",
-      "Bash(copy:*)",
-      "Bash(git init:*)",
+      "Bash(cmd /c xcopy \"C:\\Users\\wolfw\\source\\repos\\ReliabilityTesting\\build\\bin\\Release\\*.dll\" \"C:\\Users\\wolfw\\source\\repos\\ReliabilityTesting\\Deployment\" /Y)",
+      "Bash(cmd /c xcopy:*)",
+      "Bash(dir /s /b *.exe)",
+      "Bash(cmd /c \"dir /s /b *.exe\")",
+      "Bash(cmd /c dir /s /b *.exe 2)",
+      "Bash(nul)",
+      "Bash(cmd /c dir build /s /b 2)",
+      "Bash(findstr:*)",
+      "Bash(cmd /c \"dir build\\*.exe /s /b\")",
+      "Bash(cmd /c \"dir build\")",
+      "Bash(cmd /c \"dir /ad\")",
+      "Bash(cmd /c dir)",
+      "Bash(cmd /c \"echo Testing if executable exists:\")",
+      "Bash(cmd /c \"if exist Deployment\\reliability_testing_camera.exe (echo File found!) else (echo File NOT found!)\")",
+      "Bash(cmake:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(gh repo create:*)",
-      "Bash(git push:*)",
-      "Bash(cmd /c del \"C:\\Users\\wolfw\\source\\repos\\ReliabilityTesting\\start_reliability_camera.bat\")",
-      "Bash(cmd /c del \"C:\\Users\\wolfw\\source\\repos\\ReliabilityTesting\\start_simple.bat\")"
+      "Bash(del nul)"
     ],
     "deny": [],
     "ask": []
